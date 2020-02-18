@@ -65,7 +65,7 @@ while cap.isOpened():
     # # Convert HSV to RGB (BGR) color representation
     # rgb = cv2.cvtColor(mask, cv2.COLOR_HSV2BGR)
 
-    #
+    #converting 1-d array back to 2-d array with removed values
     # new_angle_array, new_magnitude_array = [], []
     # for idx, (magnitude_array, angle_array) in enumerate(zip(magnitude, angle)):
     #     _angle_array = [i if i >= 1 and i < 6.26 else 0 for i in angle_array ]
@@ -76,21 +76,21 @@ while cap.isOpened():
     # print("length--------------",magnitude.shape, )
 
     # converting 2D array into 1D array for plotting histogram
-    # mag1D = np.ravel(magnitude)
-    # ang1D=np.ravel(angle)
-    #
+    mag1D = np.ravel(magnitude)
+    ang1D=np.ravel(angle)
+
     # # restricting value of angle between more 1 and 2pi-1 radian
-    # anglegreaterthanzero=[i for i in ang1D if i>=1]
-    # anglewithinrange =[i for i in anglegreaterthanzero if i<6.26]
-    #
-    # # restricting value of magnitude greater than 0.36 i.e 1e-3 that is .000000001
+    anglegreaterthanzero=[i for i in ang1D if i>=1]
+    anglewithinrange =[i for i in anglegreaterthanzero if i<6.26]
+
+    # restricting value of magnitude greater than 0.36 i.e 1e-3 that is .000000001
     # magnitudewithrange = [i for i in mag1D if i>0.001]
-    #
+
     # newangle= np.reshape(anglewithinrange,(1, len(anglewithinrange)))
     # newmagnitude=np.reshape(magnitudewithrange,(1, len(magnitudewithrange)))
     # print ("shape of the new magnitude 2D array-------",newmagnitude.shape)
     # exit(1)
-    #
+
     # print("NEW ANGLE and magnitude IN 2 d AGAIN-------",newangle, " , ", newmagnitude)
 
 
@@ -99,11 +99,22 @@ while cap.isOpened():
     # print("Array with angles less than 6------", anglewithinrange)
     # print("size of array whose value is greater than 1------", len(anglegreaterthanzero))
     # print("size of array whose value is less than 6.28------", len(anglewithinrange))
-    # # plotting angle
-    # plt.hist(anglewithinrange, bins=50)
-    # plt.show()
+    #  plotting angle
+    # def update_line(hl, new_data):
+    #     hl.set_xdata(np.append(hl.get_xdata(), new_data))
+    #     hl.set_ydata(np.append(hl.get_ydata(), new_data))
+    #     # plt.relim()
+    #     # plt.autoscale_view()
+
+    # hl, = plt.plot([], [])
+    # update_line(hl, ang1D)
+    # plt.draw()
     # plt.pause(1)
-    # plt.close()
+
+    plt.hist(anglewithinrange, bins=50)
+    plt.show()
+    plt.pause(1)
+    plt.close()
     # # plotting magnitude
     # plt.hist(magnitudewithrange, bins=50)
     # plt.show()
@@ -150,10 +161,10 @@ while cap.isOpened():
     # cv2.imshow("Dense optical flow", draw_flow(next_gray, flow))
     cv2.imshow("Dense optical flow", dense_flow)
     # out.write(dense_flow)
-
+    plt.show()
     if cv2.waitKey(40) == 27:
         break
-
+plt.imshow()
 cv2.destroyAllWindows()
 cap.release()
 out.release()
