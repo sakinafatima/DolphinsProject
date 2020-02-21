@@ -59,13 +59,13 @@ while cap.isOpened():
     print("angle in 2D array", angle)
 
     new_angle_array, new_magnitude_array = [], []
-    # for idx, (magnitude_array, angle_array) in enumerate(zip(magnitude, angle)):
-    angle = np.array((np.where(((angle < 1) & (angle > 6.26)), 0, angle)))
-    magnitude = np.array((np.where(magnitude < 0.001, 0, magnitude)))
-    # _angle_array = [i if i >= 1 and i < 6.26 else 0 for i in angle_array ]
-    #  _magnitude_array = [i if i > 0.001 else 0 for i in magnitude_array ]
-    #  magnitude[idx] = np.array(_magnitude_array)
-    #  angle[idx] = np.array(_angle_array)
+    # angle = np.array((np.where(((angle < 1) & (angle > 6.26)), 0, angle)))
+    # magnitude = np.array((np.where(magnitude < 0.001, 0, magnitude)))
+    for idx, (magnitude_array, angle_array) in enumerate(zip(magnitude, angle)):
+     _angle_array = [i if i >= 1 and i < 6.26 else 0 for i in angle_array ]
+     _magnitude_array = [i if i > 0.001 else 0 for i in magnitude_array ]
+     magnitude[idx] = np.array(_magnitude_array)
+     angle[idx] = np.array(_angle_array)
 
     flow[..., 0], flow[..., 1] = magnitude, angle  # updating the flow with new values of angle and magnitude
 
@@ -133,8 +133,10 @@ while cap.isOpened():
         # filtering out the points in the angle and magnitude which were set to 0 previously
         filtered = [(x, y, m, a) for (x, y, m, a) in zipped if
                     (m > 0.4 and a > 0) and (x % step == 0) and (y % step == 0)]
+
         # creating lines additing angles and magnitude with y and x axis of each pixel point respectively
         lines = [[x, y, x + m, y + a] for (x, y, m, a) in filtered]
+        #lines = [[x, y, x + (m*(math.cos(a))), y + (m*(math.sin(a)))] for (x, y, m, a) in filtered]
         lines = np.array(lines).reshape(-1, 2, 2)
         lines = np.int32(lines + 0.5)
         vis = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
