@@ -12,7 +12,7 @@ lk_params = dict(winSize=(15, 15),
 fgbg = cv.createBackgroundSubtractorMOG2()
 contourpoints=[]
 
-cap = cv.VideoCapture('zoom_out.mp4')
+cap = cv.VideoCapture('test3.mp4')
 ret, frame = cap.read()
 frame = frame[130:1030, 0:1990]
 
@@ -24,12 +24,13 @@ while cap.isOpened():
     frame_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     fgmask = fgbg.apply(frame_gray)
     vis = frame.copy()
+    vis1 = frame.copy()
     blur = cv.GaussianBlur(fgmask, (5, 5), 0)
     _, thresh = cv.threshold(blur, 20, 255, cv.THRESH_BINARY)
     dilated = cv.dilate(thresh, None, iterations=3)
     # finding contours of each pixel that is moving within the frame
     _, contours, _ = cv.findContours(dilated, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-    cv.drawContours(vis, contours, -1, (0, 255, 0), 2)
+    cv.drawContours(vis1, contours, -1, (0, 255, 0), 2)
 
     for i in range(0, len(contours)):
         cnt = contours[i]
@@ -61,25 +62,24 @@ while cap.isOpened():
             label = kmeans.predict([[a, b]])
             if (label == 0):
                 #yellow
-                vis = cv.circle(vis, (a, b), 4, (246, 255, 0), -1)
+               vis = cv.circle(vis, (a, b), 4, (0, 0, 0), -1)
+              # vis= cv.rectangle(vis, (a, b), (a + c, b + d), (0, 255, 0), 2)
             elif (label == 1):
                 # pink
                 vis = cv.circle(vis, (a, b), 4, (255, 0, 255), -1)
+               # vis = cv.rectangle(vis, (a, b), (c, d), (0, 255, 0), 2)
             elif (label == 2):
-                #light blue
-                vis = cv.circle(vis, (a, b), 4, (0, 255, 255), -1)
-            # elif (label == 3):
-            #     vis = cv.circle(vis, (a, b), 4, (0, 125, 0), -1)
-            #vis = cv.circle(vis, (a, b), 4, (0, 0, 255), -1)
-            lin = cv.circle(lin, (c, d), 4, (255, 0, 0), -1)
-            # lin = cv.line(lin, (a, b), (c, d), (0, 255, 0), 1)
-    img = cv.add(vis,lin)
+                #purple
+                vis = cv.circle(vis, (a, b), 4, (128, 128, 255), -1)
+            # lin = cv.circle(lin, (c, d), 4, (255, 0, 0), -1) #red color
+
     print("p1 and p0r", p0)
     #cv.imshow('frame1', vis)
     print("rendering image")
-    cv.imshow("image",img)
-    cv.imshow("frame2", fgmask)
-    cv.imshow("frame", frame)
+    cv.imshow("image",vis)
+    cv.imshow("image", vis1)
+    # cv.imshow("frame2", fgmask)
+    # cv.imshow("frame", frame)
     frame=frame2
     if cv.waitKey(40) == ord('q'):
         break
