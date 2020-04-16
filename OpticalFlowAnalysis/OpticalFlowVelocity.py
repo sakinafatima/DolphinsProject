@@ -40,7 +40,7 @@ print("timestamp of frame--------first frame", cap.get(cv.CAP_PROP_POS_MSEC))
 start_frame_number =0
 while cap.isOpened():
 
-    start_frame_number = start_frame_number +20
+    start_frame_number = start_frame_number +5
     cap.set(cv.CAP_PROP_POS_FRAMES, start_frame_number)
 
     ret, frame2 = cap.read()
@@ -80,7 +80,7 @@ while cap.isOpened():
                  # dividing difference by fps:
             velocity = np.divide(ret, fpsperframe)
             print("velocity after dividing by fps-----", velocity)
-            vel= [maths.sqrt(each[1]**2+each[1]**2) for each in velocity]
+            vel= [maths.sqrt(each[0]**2+each[1]**2) for each in velocity]
             print("velocity after squarerrot----", vel, "lenght of velocity before--------",len(vel))
             for i in vel[:]:
                 print("velocity value----------------------",i)
@@ -88,7 +88,7 @@ while cap.isOpened():
                     vel.remove(i)
             print("velocity value after range values defined----------------------", vel, "length of vel-----",len(vel))
             print(framecount,"frame count now------------")
-            if framecount<=21:
+            if framecount<=6:
              print("fitting kmeans")
              kmeans = KMeans(algorithm="full", n_clusters=2, random_state=0, max_iter=3000).fit(np.array(vel).reshape(-1, 1))
              print("k means complete only for first run---------")
@@ -115,14 +115,14 @@ while cap.isOpened():
                             print("velocity for prediction-------",vel1)
                             label = kmeans.predict(np.array(vel1).reshape(-1,1))
                             if (label==0): #white
-                                 vis = cv.circle(vis, (a, b), 4, (255, 255, 255), -1)
+                                 #vis = cv.circle(vis, (a, b), 4, (255, 255, 255), -1)
                                  color=(255, 255, 255)
                                  drawRectangle(magnification,color, vis, x,y, w, h)
                                  print("velocicty in label 0", vel1)
                                  #cv.putText(vis, str(vel1), (a, b), font, 1, (255, 255, 255), 1, cv.LINE_AA)
                             elif (label == 1):
                                     # pinks
-                                    vis = cv.circle(vis, (a, b), 4, (255, 0, 255), -1)
+                                    #vis = cv.circle(vis, (a, b), 4, (255, 0, 255), -1)
                                     color=(255, 0, 255)
                                     drawRectangle(magnification,color, vis, x,y, w, h)
                                     print("velocicty in label 1", vel1)
@@ -135,9 +135,9 @@ while cap.isOpened():
                             #         print("velocicty in label 2", vel1)
                                     #cv.putText(vis, str(vel1), (a, b), font, 1, (128, 128, 255), 1, cv.LINE_AA)
                             print("-------------Video Name: ", videoname, " --------frame count: ", framecount,
-                                  " ---------Object Coordinates: ", x, y)
+                                  " ---------Object Coordinates: ", a, b)
         print("rendering image")
-        framecount = framecount + 20;
+        framecount = framecount +5;
         cv.imshow("image", vis)
         cv.imshow("frame2", fgmask)
         cv.imshow("frame", frame)
@@ -150,4 +150,3 @@ while cap.isOpened():
     if cv.waitKey(40) == ord('q'):
      break
 cv.destroyAllWindows()
-
