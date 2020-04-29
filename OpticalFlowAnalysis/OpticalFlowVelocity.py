@@ -5,27 +5,25 @@ import cv2 as cv
 import math as maths
 import time
 from ocr import getMagnification
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
 
 font = cv.FONT_HERSHEY_COMPLEX_SMALL
 videoname='third_sampletrim.mp4'
-
 flag=0
+#function for drawing rectangles on the basis of video magnification value
 def drawRectangle(magnification,color,vis,x, y, w, h):
-    #if magnification <= 4.0:
+    if magnification <= 4.0:
      if (w < 80 and h < 80):
             vis = cv.rectangle(vis, (x, y), (x + w, y + h), color, 2)
             print("drawing small rectnagles", magnification)
-    #  elif (magnification > 4.0):
-    #     vis = cv.rectangle(vis, (x, y), (x + w, y + h), color, 2)
-    # #     print("drawing large rectnagles", magnification)
-     return vis
-
+    elif (magnification > 4.0):
+        vis = cv.rectangle(vis, (x, y), (x + w, y + h), color, 2)
+        print("drawing large rectnagles", magnification)
+    return vis
 
 lk_params = dict(winSize=(15, 15),
                  maxLevel=2,
                  criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 0.03))
+#performing background subtraction to remove noise
 fgbg = cv.createBackgroundSubtractorMOG2()
 contourpoints=[]
 box1=[]
@@ -36,11 +34,12 @@ fpsperframe=1/fps
 print("fps per frame",fpsperframe)
 ret, frame = cap.read()
 framecount=1
+#cropping frames to remove unrequired part of frame
 frame = frame[130:1030, 0:1990]
 print("timestamp of frame--------first frame", cap.get(cv.CAP_PROP_POS_MSEC))
 start_frame_number =0
 while cap.isOpened():
-
+    #taking a difference of 5 frames within one iteration to see a change in velocity
     start_frame_number = start_frame_number +5
     cap.set(cv.CAP_PROP_POS_FRAMES, start_frame_number)
 
@@ -53,28 +52,22 @@ while cap.isOpened():
         fgmask = fgbg.apply(frame_gray)
         vis = frame2.copy()
         mask=frame.copy()
+        #applying blur and global thresholding to remove noise
         blur = cv.GaussianBlur(fgmask, (5, 5), 0)
-        threshadapt = cv.adaptiveThreshold(blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                        cv.THRESH_BINARY, 79, 5)
         _, threshglobal = cv.threshold(blur, 20, 255, cv.THRESH_BINARY)
-        #thresh=cv.absdiff(threshadapt, threshglobal)
         dilated = cv.dilate(threshglobal, None, iterations=3)
-        #dilated1 = cv.dilate(threshglobal, None, iterations=3)
-
         # finding contours of each pixel that is moving within the frame
-        contours, _ = cv.findContours(dilated, cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
+        _,contours, _ = cv.findContours(dilated, cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
         #contours1, _ = cv.findContours(dilated1, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         print("drawing contours------")
 
         #cv.drawContours(frame, contours, -1, (0, 255, 0), 2)
-        #cv.drawContours(mask, countourFinal, -1, (0, 255, 0), 2)
-
         for i in range(0, len(contours)):
                 cnt = contours[i]
                 box.append(cv.boundingRect(cnt))
                 cv.drawContours(mask, cnt, -1, 255, -1)
                 x, y, w, h = box[i]
-                #calculating pixel intensity for each contour 
+                #calculating pixel intensity for each contour
                 mean = np.array(cv.mean(frame_gray[y:y + h, x:x + w])).astype(np.uint8)
                 #removing noise by removing pixels whose intensity is out of range
                 if mean[0]<=115 and mean[0]>80:
@@ -96,7 +89,7 @@ while cap.isOpened():
             print("shape of p1 and old dis",p1array, p0array)
             ret = p1array-p0array
             print("result of diff numpy array", ret)
-                 # dividing difference by fps:
+            # dividing difference by fps:
             velocity = np.divide(ret, fpsperframe)
             print("velocity after dividing by fps-----", velocity)
             vel= [maths.sqrt(each[0]**2+each[1]**2) for each in velocity]
@@ -108,7 +101,8 @@ while cap.isOpened():
             print("velocity value after range values defined----------------------", vel, "length of vel-----",len(vel))
             print(framecount,"frame count now------------")
 
-            if (framecount<=6):
+            if (flag==0):
+             #flag is set to one here so that training with kmeans is done only once instead of every iteration
              print("fitting kmeans")
              kmeans = KMeans(algorithm="full", n_clusters=2, random_state=0, max_iter=3000).fit(np.array(vel).reshape(-1, 1))
              print("k means complete only for first run---------")
@@ -120,12 +114,6 @@ while cap.isOpened():
             for i, (f2, f1) in enumerate(zip(p1, p0)): #list comprehension
                         a, b = f2.ravel()
                         c, d = f1.ravel()
-                        #for printing lines on frame
-                        # mask = cv.line(mask, (a, b), (c, d),
-                        #                 (255, 255, 255), 2)
-                        #
-                        # mask = cv.circle(mask, (a, b), 5,
-                        #                    (255, 255, 255), -1)
                         x, y, w, h = box1[i]
                         vx=(a-c)/fpsperframe
                         vy=(b-d)/fpsperframe
@@ -135,7 +123,7 @@ while cap.isOpened():
                             mean = np.array(cv.mean(frame2[y:y + h, x:x + w])).astype(np.uint8)
                             print("velocity for prediction-------",vel1)
                             label = kmeans.predict(np.array(vel1).reshape(-1,1))
-                            if (label==0): #white #dolphin label
+                            if (label==0): #Non water objects, particularly dolphins
 
                               print("mean value--------",mean)
                               if mean[0]>100 and mean[1]>80 and mean[2]>45 :
@@ -151,22 +139,14 @@ while cap.isOpened():
                             # #         drawRectangle(magnification,color, vis, int(a),int(b), w, h)
                             # #         print("velocicty in label 1", vel1)
                             #         cv.putText(vis, str(vel1), (a, b), font, 1, (255, 0, 255), 1, cv.LINE_AA)
-                            # # elif (label == 2):
-                            #         #purple
-                            #         color = (128, 128, 255)
-                            #         vis = cv.circle(vis, (a, b), 4, (128, 128, 255), -1)
-                            #         drawRectangle(color, vis, x,y, w, h)
-                            #         print("velocicty in label 2", vel1)
-                            #         cv.putText(vis, str(vel1), (a, b), font, 1, (128, 128, 255), 1, cv.LINE_AA)
+
                             print("-------------Video Name: ", videoname, " --------frame count: ", framecount,
-                                  " ---------Object Coordinates: ", a, b)
+                                  " ---------Object Coordinates: ", a, b, "velocity" ,vel1, "Vx and Vy Velocity" ,vx,vy)
         print("rendering image")
         framecount = framecount +5;
         cv.imshow("image", vis)
-        # cv.imshow("global thresh", threshglobal)
-        # #cv.imshow("simple thresh",thresh)
+        cv.imshow("global thresh", threshglobal)
         cv.imshow("frame", frame)
-        # cv.imshow("mask", mask)
         frame = frame2
         del contourpoints[:]
         del box[:]
