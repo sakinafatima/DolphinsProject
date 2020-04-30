@@ -1,15 +1,24 @@
 from __future__ import print_function
+
+from openpyxl import load_workbook
 from sklearn.cluster import KMeans
 import numpy as np
 import cv2 as cv
 import math as maths
 import time
+import pandas as pd
 from ocr import getMagnification
+from openpyxl.workbook import Workbook
 
 font = cv.FONT_HERSHEY_COMPLEX_SMALL
 videoname='third_sampletrim.mp4'
 flag=0
-#function for drawing rectangles on the basis of video magnification value
+#setting up excelsheet for saving output
+workbook_name = 'test.xlsx'
+wb = load_workbook(workbook_name)
+page = wb.active
+headers= ['video name','frame count','x coordinate','y coordinate','velocity','label']
+page.append(headers)
 def drawRectangle(magnification,color,vis,x, y, w, h):
     if magnification <= 4.0:
      if (w < 80 and h < 80):
@@ -44,7 +53,7 @@ while cap.isOpened():
     cap.set(cv.CAP_PROP_POS_FRAMES, start_frame_number)
 
     ret, frame2 = cap.read()
-    magnification = getMagnification(frame2)
+    magnification = 1.0
     print("timestamp of frame--------",cap.get(cv.CAP_PROP_POS_MSEC))
     if frame2 is not None:
         frame2 = frame2[130:1030, 0:1990]
@@ -124,7 +133,7 @@ while cap.isOpened():
                             print("velocity for prediction-------",vel1)
                             label = kmeans.predict(np.array(vel1).reshape(-1,1))
                             if (label==0): #Non water objects, particularly dolphins
-
+                              x=0;
                               print("mean value--------",mean)
                               if mean[0]>100 and mean[1]>80 and mean[2]>45 :
                                vis = cv.circle(vis, (a, b), 4, (255, 255, 0), -1)
@@ -140,8 +149,16 @@ while cap.isOpened():
                             # #         print("velocicty in label 1", vel1)
                             #         cv.putText(vis, str(vel1), (a, b), font, 1, (255, 0, 255), 1, cv.LINE_AA)
 
-                            print("-------------Video Name: ", videoname, " --------frame count: ", framecount,
-                                  " ---------Object Coordinates: ", a, b, "velocity" ,vel1, "Vx and Vy Velocity" ,vx,vy)
+                               print("-------------Video Name: ", videoname, " --------frame count: ", framecount,
+                                  " ---------Object Coordinates: ", a, b, "label of cluster", label,"velocity" ,vel1, "Vx and Vy Velocity" ,vx,vy)
+                               #writing output in the excel sheet
+                               data = [[videoname,  framecount, a, b,vel1,x]]
+
+                               for info in data:
+                                   page.append(info)
+
+                               wb.save(filename=workbook_name)
+
         print("rendering image")
         framecount = framecount +5;
         cv.imshow("image", vis)
