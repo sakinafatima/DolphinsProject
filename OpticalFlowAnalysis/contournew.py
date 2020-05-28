@@ -58,7 +58,7 @@ while cap.isOpened():
    # cv2.imshow("frame",image)
     flow = cv2.calcOpticalFlowFarneback(prev_gray, next_gray, None, pyr_scale=0.5, levels=5, winsize=11, iterations=5,
                                         poly_n=5, poly_sigma=1.1, flags=0)
-    # Compute the magnitude and angle of the 2D vectors
+    
 
     magnitude, angle = cv2.cartToPolar(flow[..., 0], flow[..., 1])
     # changed_points, array_of_difference = get_points_changed(magnitude, array_of_difference)
