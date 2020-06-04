@@ -1,3 +1,4 @@
+import itertools
 from collections import Counter
 
 import numpy as np
@@ -5,16 +6,13 @@ import pylab as pl
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from matplotlib import pyplot
+
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.utils import shuffle
 from sklearn.utils import shuffle
 from imblearn.over_sampling import SMOTE
 from sklearn.metrics import confusion_matrix, classification_report, recall_score, balanced_accuracy_score
 from sklearn.model_selection import cross_val_score, GridSearchCV
-# Input data files are available in the "../input/" directory.
-# For example, running this (by clicking run or pressing Shift+Enter) will list the files in the input directory
 from sklearn.preprocessing import LabelEncoder
 import numpy as np
 from sklearn.preprocessing import minmax_scale, robust_scale
@@ -64,156 +62,487 @@ def plot_confusion_matrix(cm,
 
     plt.tight_layout()
     plt.ylabel('True label')
-    plt.xlabel('Predicted label\naccuracy={:0.4f}; misclass={:0.4f}'.format(accuracy, misclass))
+    plt.xlabel('Predicted label')
     plt.show()
     #reference: https://stackoverflow.com/questions/19233771/sklearn-plot-confusion-matrix-with-labels
-train = pd.read_csv("TrainingData/TrainVelocity_binary.csv")
+train = pd.read_csv("TrainingData/datawithclusters/binarydata/train_clusters.csv")
 print("Shape of Train",train.shape)
 train.head()
-test = pd.read_csv("TrainingData/validVelocity_binary.csv")
+test = pd.read_csv("TrainingData/datawithclusters/binarydata/valid_clusters.csv")
 print("Shape of test",test.shape)
 test.head()
-
 train=shuffle(train,random_state=49)
 train.reset_index(drop=True,inplace=True)
 test=shuffle(test,random_state=49)
 test.reset_index(drop=True,inplace=True)
 print("Any missing sample in training set:",train.isnull().values.any())
 print("Any missing sample in test set:",test.isnull().values.any(), "\n")
-X_train = pd.DataFrame(train.drop(['label'],axis=1))
-Y_train =pd.DataFrame(train.drop(['velocity1'],axis=1))
-X_test = pd.DataFrame(test.drop(['label'],axis=1))
-Y_test =pd.DataFrame(test.drop(['velocity1'],axis=1))
+train_outcome = pd.crosstab(index=train["label"],  # Make a crosstab
+                              columns="count")      # Name the count column
+print(train_outcome)
+test_outcome = pd.crosstab(index=test["label"],  # Make a crosstab
+                              columns="count")      # Name the count column
+print(test_outcome)
+train=shuffle(train,random_state=49)
+train.reset_index(drop=True,inplace=True)
+test=shuffle(test,random_state=49)
+test.reset_index(drop=True,inplace=True)
+print("Any missing sample in training set:",train.isnull().values.any())
+print("Any missing sample in test set:",test.isnull().values.any(), "\n")
+X_train = pd.DataFrame(train.drop(["filename", "framenumber", "x0", "y0", "x1", "y1",'label',"velocity_meters", "hdbscan","path"],axis=1))
+Y_train = pd.DataFrame(train.drop(["filename", "framenumber", "x0", "y0", "x1", "y1","velocity_pixels", "velocity_meters","kmeans", "hdbscan","path"],axis=1))
+X_test = pd.DataFrame(test.drop(["filename", "framenumber", "x0", "y0", "x1", "y1",'label',"velocity_meters", "hdbscan","path"],axis=1))
+Y_test =pd.DataFrame(test.drop(["filename", "framenumber", "x0", "y0", "x1", "y1","velocity_pixels", "velocity_meters","kmeans", "hdbscan","path"],axis=1))
+num_cols = X_train._get_numeric_data().columns
+print("Number of numeric features in X_train:",num_cols.size)
+num_cols = Y_train._get_numeric_data().columns
+print("Number of numeric features in Y_train:",num_cols.size)
+
+num_cols = X_test._get_numeric_data().columns
+print("Number of numeric features in X_test:",num_cols.size)
+num_cols = Y_test._get_numeric_data().columns
+print("Number of numeric features in Y_test:",num_cols.size)
+
+names_of_predictors = list(X_train.columns.values)
+print("names of predictors X train:-------",names_of_predictors)
+
+names_of_predictors = list(Y_train.columns.values)
+print("names of labels Y train-------",names_of_predictors)
+
+
+names_of_predictors = list(X_test.columns.values)
+print("names of predictors in X train:-------",names_of_predictors)
+names_of_labels = list(Y_test)
+print("names of test labels in Y test:-------",names_of_labels)
+
 #modifying scale of data (minMax and robust scale)
 feature_list=X_train.columns
 x=X_train[feature_list].values
-x_scaled=robust_scale(x)
+x_scaled=minmax_scale(x)
 df_temp=pd.DataFrame(x_scaled, columns=feature_list,index=X_train.index)
 X_train[feature_list]=df_temp
-
 x=X_test[feature_list].values
-x_scaled=robust_scale(x)
+x_scaled=minmax_scale(x)
 df_temp=pd.DataFrame(x_scaled, columns=feature_list,index=X_test.index)
 X_test[feature_list]=df_temp
 #First Test----------------------Logistic Regression--------------------------without balancing
+# t0 = pl.time.time()
+# LR = LogisticRegression(max_iter=4000,
+#                             random_state=49,
+#                             n_jobs=1) # for liblinear n_jobs is +1.
+#
+# parameters = {"penalty": ['l1', 'l2'],'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000], "solver":['liblinear','sag','saga']}
+#
+# LR_model = GridSearchCV(LR, parameters, scoring="precision", cv=3)
+#
+# # fit the classifier
+# LR_model.fit(X_train,Y_train.values.ravel())
+#
+# # get the prediction
+# predictions = LR_model.predict(X_test)
+#
+# # model eval
+# recall = recall_score(Y_test,predictions)
+# report = classification_report(Y_test
+#                                ,predictions)
+#
+# print(f'Recall Logistic Regression {recall: .2f}')
+# print(report)
+# print("Balanced Accuracy: ",balanced_accuracy_score(Y_test, predictions))
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# print("best parameters",LR_model.best_params_)
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+# #2nd Test----------------------Logistic Regression--------------------------with over sampling Smote
+# from imblearn.over_sampling import SMOTE
+#
+# smote = SMOTE(sampling_strategy='minority', random_state=49)
+#
+# Xtrain_smote, ytrain_smote = smote.fit_sample(X_train, Y_train)
+# t0 = pl.time.time()
+# LR = LogisticRegression(max_iter=4000,
+#                             random_state=49,
+#                             n_jobs=1) # for liblinear n_jobs is +1.
+#
+# parameters = {"penalty": ['l1', 'l2'],'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000], "solver":['liblinear','sag','saga']}
+#
+# LR_model = GridSearchCV(LR, parameters, scoring="precision", cv=3)
+#
+# LR_model.fit(Xtrain_smote,ytrain_smote.values.ravel())
+# #
+# # # get the prediction
+# predictions = LR_model.predict(X_test)
+#
+# # model eval
+# recall = recall_score(Y_test,predictions)
+# report = classification_report(Y_test,predictions)
+#
+# print(f'Recall Logistic Regression {recall: .2f}')
+# print(report)
+# print("Balanced Accuracy: ",balanced_accuracy_score(Y_test, predictions))
+#
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# print("best parameters",LR_model.best_params_)
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+
+# # Third Test----------------------Logistic Regression--------------------------with balanced class weight without smote
+
+# t0 = pl.time.time()
+# LR = LogisticRegression(max_iter=4000,
+#                             random_state=49,
+#                             n_jobs=1, class_weight="balanced") # for liblinear n_jobs is +1.
+#
+# parameters = {"penalty": ['l1', 'l2'],'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000], "solver":['liblinear','sag','saga']}
+#
+# LR_model = GridSearchCV(LR, parameters, scoring="precision", cv=3)
+#
+# # fit the classifier
+# LR_model.fit(X_train,Y_train.values.ravel())
+#
+# # get the prediction
+# predictions = LR_model.predict(X_test)
+#
+# # model eval
+# recall = recall_score(Y_test,predictions)
+# report = classification_report(Y_test
+#                                ,predictions)
+#
+# print(f'Recall Logistic Regression {recall: .2f}')
+# print(report)
+# print(balanced_accuracy_score(Y_test, predictions))
+#
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# print("best parameters",LR_model.best_params_)
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+
+# #forth test----------------------Logestic Regression--------------------------------with undersampling Tomeklinks
+#
+# from imblearn.under_sampling import TomekLinks
+# undersample = TomekLinks()
+# Xtrain_tomek, Ytrain_tomek = undersample.fit_sample(X_train, Y_train)
+# t0 = pl.time.time()
+# LR = LogisticRegression(max_iter=4000,
+#                             random_state=49,
+#                             n_jobs=1, class_weight='balanced') # for liblinear n_jobs is +1.
+#
+# parameters = {"penalty": ['l1', 'l2'],'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000], "solver":['liblinear','sag','saga']}
+#
+# LR_model = GridSearchCV(LR, parameters, scoring="precision", cv=3)
+#
+# # fit the classifier
+# LR_model.fit(Xtrain_tomek,Ytrain_tomek.values.ravel())
+#
+# # get the prediction
+# predictions = LR_model.predict(X_test)
+#
+# # model eval
+# recall = recall_score(Y_test,predictions)
+# report = classification_report(Y_test
+#                                ,predictions)
+#
+# print(f'Recall Logistic Regression {recall: .2f}')
+# print(report)
+# print(balanced_accuracy_score(Y_test, predictions))
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# print("best parameters",LR_model.best_params_)
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+#fifth Test----------------------Logestic Regression--------------------------------with Smote-ENN
+# from imblearn.combine import SMOTEENN
+# combine = SMOTEENN(random_state=49, sampling_strategy='all')
+# Xtrain_combine, Ytrain_combine = combine.fit_sample(X_train, Y_train)
+# t0 = pl.time.time()
+# LR = LogisticRegression(max_iter=4000,
+#                             random_state=49,
+#                             n_jobs=1, class_weight="balanced") # for liblinear n_jobs is +1.
+#
+# parameters = {"penalty": ['l1', 'l2'],'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000], "solver":['liblinear','sag','saga']}
+#
+# LR_model = GridSearchCV(LR, parameters, scoring="precision", cv=3)
+#
+# # fit the classifier
+# LR_model.fit(Xtrain_combine,Ytrain_combine.values.ravel())
+#
+# # get the prediction
+# predictions = LR_model.predict(X_test)
+#
+# # model eval
+# recall = recall_score(Y_test,predictions)
+# report = classification_report(Y_test
+#                                ,predictions)
+#
+# print(f'Recall Logistic Regression {recall: .2f}')
+# print(report)
+# print(balanced_accuracy_score(Y_test, predictions))
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# print("best parameters",LR_model.best_params_)
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+#sixth Test----------------------Logestic Regression--------------------------------with Smote-TomekLinks
+# from imblearn.combine import  SMOTETomek
+#
+# combine = SMOTETomek(random_state=49 )
+# Xtrain_combine, Ytrain_combine = combine.fit_sample(X_train, Y_train)
+# t0 = pl.time.time()
+# LR = LogisticRegression(max_iter=4000,
+#                             random_state=49,
+#                             n_jobs=1, class_weight="balanced") # for liblinear n_jobs is +1.
+#
+# parameters = {"penalty": ['l1', 'l2'],'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000], "solver":['liblinear','sag','saga']}
+#
+# LR_model = GridSearchCV(LR, parameters, scoring="precision", cv=3)
+#
+# # fit the classifier
+# LR_model.fit(Xtrain_combine,Ytrain_combine.values.ravel())
+#
+# # get the prediction
+# predictions = LR_model.predict(X_test)
+#
+# # model eval
+# recall = recall_score(Y_test,predictions)
+# report = classification_report(Y_test
+#                                ,predictions)
+#
+# print(f'Recall Logistic Regression {recall: .2f}')
+# print(report)
+# print(balanced_accuracy_score(Y_test, predictions))
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# print("best parameters",LR_model.best_params_)
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+# from imblearn.under_sampling import TomekLinks
+# undersample = TomekLinks()
+# Xtrain_tomek, Ytrain_tomek = undersample.fit_sample(X_train, Y_train)
+# t0 = pl.time.time()
+# LR = LogisticRegression(max_iter=4000,
+#                             random_state=49,
+#                             n_jobs=1, class_weight='balanced') # for liblinear n_jobs is +1.
+#
+# parameters = {"penalty": ['l1', 'l2'],'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000], "solver":['liblinear','sag','saga']}
+#
+# LR_model = GridSearchCV(LR, parameters, scoring="precision", cv=3)
+#
+# # fit the classifier
+# LR_model.fit(Xtrain_tomek,Ytrain_tomek.values.ravel())
+#
+# # get the prediction
+# predictions = LR_model.predict(X_test)
+#
+# # model eval
+# recall = recall_score(Y_test,predictions)
+# report = classification_report(Y_test
+#                                ,predictions)
+#
+# print(f'Recall Logistic Regression {recall: .2f}')
+# print(report)
+# print(balanced_accuracy_score(Y_test, predictions))
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# print("best parameters",LR_model.best_params_)
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+#
+#
+
+#seventh Test----------------------Logestic Regression--------------------------------undersampling with ENN
+# from imblearn.under_sampling import EditedNearestNeighbours
+# Xtrain_tomek, Ytrain_tomek = EditedNearestNeighbours().fit_sample(X_train, Y_train)
+# t0 = pl.time.time()
+# LR = LogisticRegression(max_iter=4000,
+#                             random_state=49,
+#                             n_jobs=1, class_weight='balanced') # for liblinear n_jobs is +1.
+#
+# parameters = {"penalty": ['l1', 'l2'],'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000], "solver":['liblinear','sag','saga']}
+#
+# LR_model = GridSearchCV(LR, parameters, scoring="precision", cv=3)
+#
+# # fit the classifier
+# LR_model.fit(Xtrain_tomek,Ytrain_tomek.values.ravel())
+#
+# # get the prediction
+# predictions = LR_model.predict(X_test)
+#
+# # model eval
+# recall = recall_score(Y_test,predictions)
+# report = classification_report(Y_test
+#                                ,predictions)
+# print(report)
+# print(balanced_accuracy_score(Y_test, predictions))
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# print("best parameters",LR_model.best_params_)
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+#eighth Test----------------------Random Forest-------------------------------- class weight=balanced
+# t0 = pl.time.time()
+# parameters_RF=param_grid = {
+#     'bootstrap': [True],
+#     'max_depth': [80, 90, 100, 110],
+#     'max_features': ['sqrt'],
+#     'min_samples_leaf': [3, 4, 5],
+#     'min_samples_split': [8, 10, 12],
+#     'n_estimators': [100, 200, 300, 1000]
+# }
+# rf = RandomForestClassifier(class_weight='balanced', random_state=49)
+# model_rf=GridSearchCV(rf,parameters_RF,cv=3)
+# model_rf.fit(X_train, Y_train.values.ravel())
+# predictions = model_rf.predict(X_test)
+# from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
+# print(confusion_matrix(Y_test,predictions))
+# print(classification_report(Y_test,predictions))
+# print(balanced_accuracy_score(Y_test, predictions))
+# print("best parameters Random Forest",model_rf.best_params_)
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+#ninth Test----------------------Random Forest-------------------------------- over sampling smote
+
+# from imblearn.over_sampling import SMOTE
+#
+# smote = SMOTE(sampling_strategy='minority', random_state=49)
+#
+# Xtrain_smote, Ytrain_smote = smote.fit_sample(X_train, Y_train)
+# parameters_RF=param_grid = {
+#     'bootstrap': [True],
+#     'max_depth': [80, 90, 100, 110],
+#     'max_features': ['sqrt'],
+#     'min_samples_leaf': [3, 4, 5],
+#     'min_samples_split': [8, 10, 12],
+#     'n_estimators': [100, 200, 300, 1000]
+# }
+# t0 = pl.time.time()
+# rf = RandomForestClassifier(class_weight='balanced', random_state=49, bootstrap= True, max_depth=80, max_features= 'sqrt', min_samples_leaf=3, min_samples_split=12, n_estimators=1000)
+# # model_rf=GridSearchCV(rf,parameters_RF,cv=3)
+#
+# rf.fit(Xtrain_smote, Ytrain_smote.values.ravel())
+# predictions = rf.predict(X_test)
+# from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
+# print(confusion_matrix(Y_test,predictions))
+# print(classification_report(Y_test,predictions))
+# print(balanced_accuracy_score(Y_test, predictions))
+# # print("best parameters Random Forest",rf.best_params_)
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+#10th Test----------------------Random Forest-------------------------------- over sampling smote/ smotetomek and smoteTomek
+#
+# from imblearn.under_sampling import TomekLinks
+# from imblearn.combine import SMOTETomek
+# sample = SMOTETomek()
+#
+# Xtrain_sample, Ytrain_sample= sample.fit_sample(X_train, Y_train)
+# parameters_RF=param_grid = {
+#     'bootstrap': [True],
+#     'max_depth': [80, 90, 100, 110],
+#     'max_features': ['sqrt'],
+#     'min_samples_leaf': [3, 4, 5],
+#     'min_samples_split': [8, 10, 12],
+#     'n_estimators': [100, 200, 300, 1000]
+# }
+# t0 = pl.time.time()
+# rf = RandomForestClassifier(class_weight='balanced', random_state=49, bootstrap= True, max_depth=80, max_features= 'sqrt', min_samples_leaf=3, min_samples_split=12, n_estimators=1000)
+#
+# # model_rf=GridSearchCV(rf,parameters_RF,cv=3)
+#
+# rf.fit(X_train, Y_train.values.ravel())
+# predictions = rf.predict(X_test)
+# from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
+# print(confusion_matrix(Y_test,predictions))
+# print(classification_report(Y_test,predictions))
+# print(balanced_accuracy_score(Y_test, predictions))
+# # print("best parameters Random Forest",model_rf.best_params_)
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+#11th Test----------------------SVM-------------------------------- over sampling smote/ smotetomek and smoteTomek
+# parameters_SVM={'C': [1, 10, 100, 1000], 'kernel': ['linear','rbf', 'sigmoid'],'gamma': [0.001, 0.0001]}
+# t0 = pl.time.time()
+# from sklearn import svm
+# from imblearn.combine import SMOTETomek
+# sample=SMOTETomek(sampling_strategy='minority',random_state=49)
+# Xtrain_sample, Ytrain_sample= sample.fit_sample(X_train, Y_train)
+# # svm_model=svm.SVC(class_weight='balanced', C=1, gamma=0.001, kernel='linear')
+# svm_model = GridSearchCV(svm.SVC(class_weight='balanced'),parameters_SVM,cv=3)
+# svm_model.fit(X_train, Y_train.values.ravel())
+# predictions = svm_model.predict(X_test)
+# from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
+# print(confusion_matrix(Y_test,predictions))
+# print(classification_report(Y_test,predictions))
+# print("Balanced Accuracy:",balanced_accuracy_score(Y_test, predictions))
+# # print("best parameters Random Forest",model_rf.best_params_)
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# print("best parameters:",svm_model.best_params_)
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+#12th Test----------------------Gradient Boosting-------------------------------- simple
+from sklearn.ensemble import GradientBoostingClassifier
+# from imblearn.under_sampling import TomekLinks
+# from imblearn.combine import SMOTETomek
+#
+# # parameters={'max_depth':[2,3], 'learning_rate':[0.15,0.1,0.001,0.0001], 'n_estimators':[100,500,1000], 'min_samples_split':[2], 'min_samples_leaf':[1,3],  'criterion':['friedman_mse']}
+# t0 = pl.time.time()
+#
+# sample=SMOTETomek(random_state=49, sampling_strategy='minority')
+# Xtrain_sample, Ytrain_sample= sample.fit_sample(X_train, Y_train)
+#
+# GB_model=GradientBoostingClassifier(criterion= 'friedman_mse', learning_rate=0.15, max_depth=3, min_samples_leaf=1, min_samples_split=2, n_estimators=1000)
+# # GB_model = GridSearchCV(GradientBoostingClassifier(),parameters,cv=3)
+#
+# GB_model.fit(X_train, Y_train.values.ravel())
+# predictions = GB_model.predict(X_test)
+# from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
+# print(confusion_matrix(Y_test,predictions))
+# print(classification_report(Y_test,predictions))
+# print("Balanced Accuracy:",balanced_accuracy_score(Y_test, predictions))
+# # print("best parameters Random Forest",model_rf.best_params_)
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# # print("best parameters:",GB_model.best_params_)
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+#13th Test----------------------MLP-------------------------------- simple
+# from sklearn.neural_network import MLPClassifier
+# # # from imblearn.under_sampling import TomekLinks
+# from imblearn.combine import SMOTETomek
+#
+# param={"activation": ['identity', 'logistic', 'tanh', 'relu'], "alpha": [0.0001, 0.001, 0.01, 0.1,1], "learning_rate_init": [0.0001, 0.001, 0.01, 0.1,1] , "solver":['lbfgs', 'sgd', 'adam']}
+# t0 = pl.time.time()
+# #
+# sample=SMOTETomek(random_state=49, sampling_strategy='all')
+# Xtrain_sample, Ytrain_sample= sample.fit_sample(X_train, Y_train)
+# mlp_model = GridSearchCV(MLPClassifier(random_state=49, hidden_layer_sizes=(5,2), activation='identity', alpha=0.0001, learning_rate_init=0.0001, solver='lbfgs'),param,cv=3)
+# # mlp_model= MLPClassifier(random_state=49,  max_iter=5000, hidden_layer_sizes=(6,4), activation='relu', alpha=0.0001,  solver='lbfgs')
+# mlp_model.fit(X_train, Y_train.values.ravel())
+# predictions = mlp_model.predict(X_test)
+# from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
+# print(confusion_matrix(Y_test,predictions))
+# print(classification_report(Y_test,predictions))
+# print("Balanced Accuracy:",balanced_accuracy_score(Y_test, predictions))
+# print("best parameters MLP",mlp_model.best_params_)
+# t1 = pl.time.time() - t0
+# print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
+# plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+#14th Test----------------------KNN-------------------------------- simple
+from sklearn.neighbors import KNeighborsClassifier
+# # from imblearn.under_sampling import TomekLinks
+from imblearn.combine import SMOTETomek
+
+param={"activation": ['identity', 'logistic', 'tanh', 'relu'], "alpha": [0.0001, 0.001, 0.01, 0.1,1], "learning_rate_init": [0.0001, 0.001, 0.01, 0.1,1] , "solver":['lbfgs', 'sgd', 'adam']}
 t0 = pl.time.time()
-LR = LogisticRegression(max_iter=4000,
-                            random_state=49,
-                            n_jobs=1) # for liblinear n_jobs is +1.
+#
+sample=SMOTETomek(random_state=49, sampling_strategy='minority')
+Xtrain_sample, Ytrain_sample= sample.fit_sample(X_train, Y_train)
+knn = KNeighborsClassifier(n_neighbors=500,n_jobs=-1)
+# maximum on 200 neighbours with 0.7326 b.accuracy for hdbscan
+# check neihbour knn for kmeans cluster? mix two classifiers
+# n_jobs=-1 to utilize all cores
+knn.fit(Xtrain_sample, Ytrain_sample.values.ravel())
 
-parameters = {"penalty": ['l1', 'l2'],'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000], "solver":['liblinear','sag','saga']}
-
-LR_model = GridSearchCV(LR, parameters, scoring="precision", cv=3)
-
-# fit the classifier
-LR_model.fit(X_train,Y_train.values.ravel())
-
-# get the prediction
-predictions = LR_model.predict(X_test)
-
-# model eval
-recall = recall_score(Y_test,predictions)
-report = classification_report(Y_test
-                               ,predictions)
-
-print(f'Recall Logistic Regression {recall: .2f}')
-print(report)
-print(balanced_accuracy_score(Y_test, predictions))
-plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
+predictions = knn.predict(X_test)
+from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
+print(confusion_matrix(Y_test,predictions))
+print(classification_report(Y_test,predictions))
+print("Balanced Accuracy:",balanced_accuracy_score(Y_test, predictions))
 
 t1 = pl.time.time() - t0
 print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
-print("best parameters",LR_model.best_params_)
-#2nd Test----------------------Logistic Regression--------------------------with over sampling Smorte
-from imblearn.over_sampling import SMOTE
-
-smote = SMOTE(sampling_strategy='minority', random_state=49)
-
-Xtrain_smote, ytrain_smote = smote.fit_sample(X_train, Y_train)
-t0 = pl.time.time()
-LR = LogisticRegression(max_iter=4000,
-                            random_state=49,
-                            n_jobs=1) # for liblinear n_jobs is +1.
-
-parameters = {"penalty": ['l1', 'l2'],'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000], "solver":['liblinear','sag','saga']}
-
-LR_model = GridSearchCV(LR, parameters, scoring="precision", cv=3)
-
-# fit the classifier
-LR_model.fit(Xtrain_smote,ytrain_smote)
-
-# get the prediction
-predictions = LR_model.predict(X_test)
-
-# model eval
-recall = recall_score(Y_test,predictions)
-report = classification_report(Y_test
-                               ,predictions)
-
-print(f'Recall Logistic Regression {recall: .2f}')
-print(report)
-print(balanced_accuracy_score(Y_test, predictions))
-plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
-# Third Test----------------------Logistic Regression--------------------------with balanced class weight without smorte
-
-t1 = pl.time.time() - t0
-print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
-print("best parameters",LR_model.best_params_)
-
-t0 = pl.time.time()
-LR = LogisticRegression(max_iter=4000,
-                            random_state=49,
-                            n_jobs=1, class_weight="balanced") # for liblinear n_jobs is +1.
-
-parameters = {"penalty": ['l1', 'l2'],'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000], "solver":['liblinear','sag','saga']}
-
-LR_model = GridSearchCV(LR, parameters, scoring="precision", cv=3)
-
-# fit the classifier
-LR_model.fit(X_train,Y_train.values.ravel())
-
-# get the prediction
-predictions = LR_model.predict(X_test)
-
-# model eval
-recall = recall_score(Y_test,predictions)
-report = classification_report(Y_test
-                               ,predictions)
-
-print(f'Recall Logistic Regression {recall: .2f}')
-print(report)
-print(balanced_accuracy_score(Y_test, predictions))
-plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
-#forth test----------------------Logestic Regression--------------------------------with undersampling
-
-from imblearn.under_sampling import TomekLinks
-undersample = TomekLinks()
-
-t1 = pl.time.time() - t0
-print("Time taken: {:.0f} min {:.0f} secs".format(*divmod(t1, 60)))
-print("best parameters",LR_model.best_params_)
-
-t0 = pl.time.time()
-LR = LogisticRegression(max_iter=4000,
-                            random_state=49,
-                            n_jobs=1, class_weight="balanced") # for liblinear n_jobs is +1.
-
-parameters = {"penalty": ['l1', 'l2'],'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000], "solver":['liblinear','sag','saga']}
-
-LR_model = GridSearchCV(LR, parameters, scoring="precision", cv=3)
-
-# fit the classifier
-LR_model.fit(X_train,Y_train.values.ravel())
-
-# get the prediction
-predictions = LR_model.predict(X_test)
-
-# model eval
-recall = recall_score(Y_test,predictions)
-report = classification_report(Y_test
-                               ,predictions)
-
-print(f'Recall Logistic Regression {recall: .2f}')
-print(report)
-print(balanced_accuracy_score(Y_test, predictions))
 plot_confusion_matrix(confusion_matrix(Y_test,predictions),['Dolphin','Non-Dolphin'])
