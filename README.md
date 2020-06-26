@@ -6,7 +6,8 @@ Optical flow LK method is applied to calculate the delta displacement. From this
 <img width="1022" alt="test04_april20" src="https://user-images.githubusercontent.com/25576435/83128337-31aa2800-a0d3-11ea-8e51-f5418e6b24cc.PNG">
 Lastly Methods of Supservised learning like SVM, Random Forest, MLP, Logistic Regression are applied and evaluated to find and predict the dolphins school and to seperate them from the non dolphin objects.
 
-# In order to run this project: (this project was implemented on PyCharm 2019.3.2 IDE)
+# Run
+In order to run this project: (this project was implemented on PyCharm 2019.3.2 IDE)
 Install following libraries: 
 -Python (3.7 version) 
 -OpenCV (Open Source Computer Vision Library)
